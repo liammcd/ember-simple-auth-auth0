@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v4.1.1 (August 8th, 2018)
+
+### Pull Requests
+
+- [#134](https://github.com/auth0-community/ember-simple-auth-auth0/pull/134)  Fixed autoClose=true causing promise to reject  *by [Xaser Acheron](https://github.com/XaserAcheron)*
+
 ## v4.1.0 (July 30th, 2018)
 
 ## Say Hello to ember-auto-import!

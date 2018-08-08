@@ -61,7 +61,6 @@ export default Service.extend({
   },
 
   _setupLock(lock, resolve, reject) {
-    lock.on('hide', reject);
     lock.on('authenticated', (authenticatedData) => {
       if (isEmpty(authenticatedData)) {
         return reject(new Auth0Error('The authenticated data did not come back from the request'));

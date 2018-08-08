@@ -95,22 +95,6 @@ module('Unit | Service | auth0', function(hooks) {
     stubbedLock.trigger('authenticated', authenticatedData);
   });
 
-  test('showLock rejects when hidden', function(assert) {
-    assert.expect(1);
-    const done = assert.async();
-    const stubbedLock = new StubLock();
-    const subject = this.owner.factoryFor('service:auth0').create({
-      getAuth0LockInstance: this.stubLock(stubbedLock)
-    });
-
-    subject.showLock()
-      .then(() => assert.notOk(true))
-      .catch(() => assert.ok(true))
-      .finally(done);
-
-    stubbedLock.trigger('hide', new Error());
-  });
-
   test('showLock rejects when authenticatedData does not exist', function(assert) {
     assert.expect(1);
     const done = assert.async();
