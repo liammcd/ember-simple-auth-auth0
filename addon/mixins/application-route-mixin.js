@@ -74,7 +74,7 @@ export default Mixin.create(ApplicationRouteMixin, {
 
   _getUrlHashData() {
     const auth0 = get(this, 'auth0').getAuth0Instance();
-    const enableImpersonation = !!get(this, 'auth0.config.enableImpersonation');
+    const enableImpersonation = get(this, 'auth0.enableImpersonation');
     return new RSVP.Promise((resolve, reject) => {
       auth0.parseHash({__enableImpersonation: enableImpersonation}, (err, parsedPayload) => {
         if (err) {
@@ -99,19 +99,34 @@ export default Mixin.create(ApplicationRouteMixin, {
       return;
     }
 
-    this._scheduleExpire();
+    // [XA] only actually schedule events if we're authenticated.
+    if (get(this, 'session.isAuthenticated')) {
+      this._scheduleRenew();
+      this._scheduleExpire();
+    }
+  },
+
+  _scheduleJob(jobName, jobFn, timeInMilli) {
+    run.cancel(get(this, jobName));
+    const job = run.later(this, jobFn, timeInMilli);
+    set(this, jobName, job);
+  },
+
+  _scheduleRenew() {
+    const renewInMilli = get(this, 'auth0.silentAuthRenewSeconds') * 1000;
+    if(renewInMilli) {
+      this._scheduleJob('_renewJob', this._processSessionRenewed, renewInMilli);
+    }
   },
 
   _scheduleExpire() {
-    run.cancel(get(this, '_expireJob'));
     const expireInMilli = get(this, '_jwtRemainingTimeInSeconds') * 1000;
-    const job = run.later(this, this._processSessionExpired, expireInMilli);
-    set(this, '_expireJob', job);
+    this._scheduleJob('_expireJob', this._processSessionExpired, expireInMilli);
   },
 
   /**
    * The current JWT's expire time
-   * @return {Number in seconds}
+   * @return {Date of expiration}
    */
   _expiresAt: computed('session.data.authenticated', {
     get() {
@@ -124,6 +139,10 @@ export default Mixin.create(ApplicationRouteMixin, {
     }
   }),
 
+  /**
+   * Number of seconds until the JWT expires.
+   * @return {Number in seconds}
+   */
   _jwtRemainingTimeInSeconds: computed('_expiresAt', {
     get() {
       let remaining = getWithDefault(this, '_expiresAt', 0) - now();
@@ -133,12 +152,34 @@ export default Mixin.create(ApplicationRouteMixin, {
   }),
 
   _clearJobs() {
+    run.cancel(get(this, '_renewJob'));
     run.cancel(get(this, '_expireJob'));
+  },
+
+  _processSessionRenewed() {
+    // [XA] need to refactor this a bit. This is kinda bonkers-spaghetti right now.
+    return this._trySilentAuth()
+      .then(this._scheduleRenew.bind(this), this._setupFutureEvents.bind(this));
   },
 
   _processSessionExpired() {
     return this.beforeSessionExpired()
-      .then(this._invalidateIfAuthenticated.bind(this));
+      .then(this._trySilentAuth.bind(this))
+      .then(this._invalidateIfAuthenticated.bind(this), this._scheduleExpire.bind(this)); // reschedule expiration if we re-authenticate.
+  },
+
+  _trySilentAuth() {
+    const auth0Svc = get(this, 'auth0');
+    if(get(auth0Svc, 'silentAuthOnSessionExpire')) {
+      // Try silent auth, but reverse the promise results.
+      // since a rejecting promise during expiration means
+      // "don't expire", we want to reject on success and
+      // resolve on failure. Strange times.
+      return new RSVP.Promise((resolve, reject) => {
+        get(this, 'session').authenticate('authenticator:auth0-silent-auth').then(reject, resolve);
+      });
+    }
+    return RSVP.resolve();
   },
 
   _invalidateIfAuthenticated() {

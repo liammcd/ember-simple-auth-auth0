@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v4.2.0-beta.0 (September 4th, 2018)
+
+### Pull Requests
+
+- [#137](https://github.com/auth0-community/ember-simple-auth-auth0/pull/137)  Add native support for Silent Authentication  *by [Xaser Acheron](https://github.com/XaserAcheron)*
+
 ## v4.1.1 (August 8th, 2018)
 
 ### Pull Requests
