@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v4.2.0-beta.2 (September 17th, 2018)
+
+### Pull Requests
+
+- [#139](https://github.com/auth0-community/ember-simple-auth-auth0/pull/139)  Added logoutReturnToPath config option for root-relative logout URL support  *by [Xaser Acheron](https://github.com/XaserAcheron)*
+
 ## v4.2.0-beta.1 (September 17th, 2018)
 
 ### Pull Requests

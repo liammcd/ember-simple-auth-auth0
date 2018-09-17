@@ -53,7 +53,14 @@ export default Service.extend({
    * The URL to return to when logging out
    * @type {String}
    */
-  logoutReturnToURL: readOnly('config.logoutReturnToURL'),
+  logoutReturnToURL: computed('config.{logoutReturnToURL,logoutReturnToPath}', function() {
+    const logoutReturnToPath = get(this, 'config.logoutReturnToPath');
+    if (logoutReturnToPath) {
+      assert('ember-simple-auth-auth0 logoutReturnToPath must start with /', logoutReturnToPath.startsWith('/'));
+      return window.location.origin + logoutReturnToPath;
+    }
+    return get(this, 'config.logoutReturnToURL');
+  }),
 
   /**
    * Enable user impersonation. This is opt-in due to security risks.

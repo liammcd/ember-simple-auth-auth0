@@ -69,6 +69,20 @@ module('Unit | Service | auth0', function(hooks) {
       config['ember-simple-auth'].auth0.logoutReturnToURL);
   });
 
+  test('it calculates the logoutURL from logoutReturnToPath correctly', function(assert) {
+    const config = this.registerConfig({
+      ['ember-simple-auth']: {
+        auth0: {
+          logoutReturnToPath: '/my-login'
+        }
+      }
+    });
+
+    let service = this.owner.lookup('service:auth0');
+    let path = config['ember-simple-auth'].auth0.logoutReturnToPath
+    assert.equal(get(service, 'logoutReturnToURL'), `${this.windowLocation()}${path}`);
+  });
+
   test('showLock calls getUserInfo', function(assert) {
     assert.expect(1);
     const done = assert.async();
