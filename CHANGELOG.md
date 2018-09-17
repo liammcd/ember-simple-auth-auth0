@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v4.2.0-beta.1 (September 17th, 2018)
+
+### Pull Requests
+
+- [#138](https://github.com/auth0-community/ember-simple-auth-auth0/pull/138)  Support silentAuth.redirectPath option, and remove auth0-silent-auth authenticator.  *by [Mike Fotinakis](https://github.com/fotinakis)*
+
 ## v4.2.0-beta.0 (September 4th, 2018)
 
 ### Pull Requests

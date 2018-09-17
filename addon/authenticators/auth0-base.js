@@ -41,20 +41,27 @@ export default BaseAuthenticator.extend({
   // performs silent authentication & handles the result in a promise.
   _performSilentAuth(options) {
     return new RSVP.Promise((resolve, reject) => {
-      // perform silent auth via auth0's checkSession function (called in the service);
-      // if successful, use the same logic as the url-hash authenticator since the
-      // result of checkSession is the same as parseHash.
-      get(this, 'auth0').silentAuth(options).then(authenticatedData => {
-        this._resolveAuthResult(authenticatedData, resolve, reject);
-      }, result => {
-        // for any error types other than login_required, log it to the console.
-        // otherwise, there are a few cases (auto-renewal, basically) where the
-        // error details will get swallowed completely. Better to give feedback.
-        if(console && result && result.name && result.name !== 'login_required') {
-          console.warn(`Silent authentication failed: ${result.message}`); // eslint-disable-line no-console
-        }
-        reject(result);
-      });
+      try {
+        // perform silent auth via auth0's checkSession function (called in the service);
+        // if successful, use the same logic as the url-hash authenticator since the
+        // result of checkSession is the same as parseHash.
+        get(this, 'auth0').silentAuth(options).then(authenticatedData => {
+          this._resolveAuthResult(authenticatedData, resolve, reject);
+        }, error => {
+          // for any error types other than login_required, log it to the console.
+          // otherwise, there are a few cases (auto-renewal, basically) where the
+          // error details will get swallowed completely. Better to give feedback.
+          if(console && error && error.name && error.name !== 'login_required') {
+            console.warn(`Silent authentication failed: ${error.message}`); // eslint-disable-line no-console
+          }
+          reject(error);
+        });
+      } catch (e) {
+        // Explictly catch, log, and rethrow errors because promises hide them.
+        // This lets deeper Ember.assert calls actually log errors in development.
+        console.log(e); // eslint-disable-line no-console
+        throw e;
+      }
     });
   }
 });

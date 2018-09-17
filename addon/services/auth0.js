@@ -93,6 +93,13 @@ export default Service.extend({
       timeout: 5000
     };
     const configOptions = getWithDefault(this, 'config.silentAuth.options', {});
+    const redirectPath = configOptions.redirectPath;
+
+    // Support redirectPath which becomes redirectUri with the origin location prepended.
+    if (redirectPath) {
+      assert('ember-simple-auth-auth0 redirectPath must start with /', redirectPath.startsWith('/'));
+      configOptions.redirectUri = window.location.origin + redirectPath;
+    }
 
     // [XA] convoluted assign logic, just in case the Ember.Merge fallback is used.
     const options = {};
@@ -104,7 +111,7 @@ export default Service.extend({
   /**
    * Perform Silent Authentication with Auth0's checkSession() method.
    * Returns the authenticated data if successful, or rejects if not.
-   * 
+   *
    * This method does NOT actually create an ember-simple-auth session;
    * use the authenticator rather than calling this directly.
    *
