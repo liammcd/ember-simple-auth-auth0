@@ -1,8 +1,8 @@
 import { readOnly, bool } from '@ember/object/computed';
 import { getOwner } from '@ember/application';
 import { getProperties, get, getWithDefault, computed } from '@ember/object';
-import { assert } from '@ember/debug';
-import { isEmpty } from '@ember/utils';
+import { assert, debug } from '@ember/debug';
+import { isEmpty, isPresent } from '@ember/utils';
 import Service, { inject as service } from '@ember/service';
 import { merge as emberMerge, assign as emberAssign } from '@ember/polyfills';
 import RSVP from 'rsvp';
@@ -145,6 +145,30 @@ export default Service.extend({
         }
       });
     });
+  },
+
+  /**
+   * Creates an authorization header from the session's token and calls
+   * the given function, passing the header name & value as parameters.
+   *
+   * This method exists mainly for convencience, though it serves as a
+   * handy drop-in replacement for the now-deprecated jwtAuthorizer.
+   *
+   * Just like with ember-simple-auth's authorizers, this method will do
+   * nothing if the session is not authenticated.
+   *
+   * @method authorize
+   */
+  authorize(block) {
+    if (get(this, 'session.isAuthenticated')) {
+      const userToken = get(this, 'session.data.authenticated.idToken');
+
+      if (isPresent(userToken)) {
+        block('Authorization', `Bearer ${userToken}`);
+      } else {
+        debug('Could not find idToken in authenticated session data.');
+      }
+    }
   },
 
   showLock(options, clientID = null, domain = null, passwordless = false) {

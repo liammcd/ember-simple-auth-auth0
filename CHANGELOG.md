@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## v4.2.0-beta.3 (September 19th, 2018)
+
+### Pull Requests
+
+- [#141](https://github.com/auth0-community/ember-simple-auth-auth0/pull/141)  Re-fixed React production build  *by [Xaser Acheron](https://github.com/XaserAcheron)*
+- [#142](https://github.com/auth0-community/ember-simple-auth-auth0/pull/142)  Add Authorize method to Auth0 Service  *by [Xaser Acheron](https://github.com/XaserAcheron)*
+
 ## v4.2.0-beta.2 (September 17th, 2018)
 
 ### Pull Requests
