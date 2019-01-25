@@ -64,7 +64,7 @@ export default Mixin.create(ApplicationRouteMixin, {
   },
 
   _authenticateWithUrlHash(urlHashData) {
-    if (isEmpty(urlHashData)) {
+    if (isEmpty(urlHashData) || typeof FastBoot !== 'undefined') {
       return;
     }
 
@@ -73,6 +73,10 @@ export default Mixin.create(ApplicationRouteMixin, {
   },
 
   _getUrlHashData() {
+    if (typeof FastBoot !== 'undefined') {
+      return;
+    }
+
     const auth0 = get(this, 'auth0').getAuth0Instance();
     const enableImpersonation = get(this, 'auth0.enableImpersonation');
     return new RSVP.Promise((resolve, reject) => {
@@ -87,7 +91,7 @@ export default Mixin.create(ApplicationRouteMixin, {
   },
 
   _clearUrlHash() {
-    if(!this.get('inTesting') && window.history) {
+    if(typeof FastBoot === 'undefined' && !this.get('inTesting') && window.history) {
       window.history.pushState('', document.title, window.location.pathname + window.location.search);
     }
     return RSVP.resolve()
@@ -95,7 +99,7 @@ export default Mixin.create(ApplicationRouteMixin, {
 
   _setupFutureEvents() {
     // Don't schedule expired events during testing, otherwise acceptance tests will hang.
-    if (this.get('inTesting')) {
+    if (this.get('inTesting') || typeof FastBoot !== 'undefined') {
       return;
     }
 

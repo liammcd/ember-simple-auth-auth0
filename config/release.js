@@ -17,7 +17,7 @@ module.exports = {
   },
 
   beforeCommit() {
-    return generateChangelog(...arguments); // eslint-disable-line node/no-unsupported-features
+    return generateChangelog(...arguments); // eslint-disable-line node/no-unsupported-features/es-syntax
   }
 };
 

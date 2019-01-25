@@ -293,41 +293,42 @@ If you want to craft acceptance tests for Auth0's Lock, there are two things you
 ```js
 // tests/acceptance/login.js
 
-import { test } from 'qunit';
-import { mockAuth0Lock } from 'dummy/tests/helpers/ember-simple-auth-auth0';
-import { authenticateSession, currentSession } from 'dummy/tests/helpers/ember-simple-auth';
-import moduleForAcceptance from '../../tests/helpers/module-for-acceptance';
+import { module, test } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
+import { visit, currentURL } from '@ember/test-helpers';
+import { mockAuth0Lock } from 'ember-simple-auth-auth0/test-support';
+import { authenticateSession, currentSession } from 'ember-simple-auth/test-support';
 
-moduleForAcceptance('Acceptance | login');
+module('Acceptance | login', function(hooks) {
+  setupApplicationTest(hooks);
+  
+  test('visiting /login redirects to /protected page if authenticated', async function(assert) {
+    assert.expect(1);
+    const sessionData = {
+      idToken: 1
+    };
 
-test('visiting /login redirects to /protected page if authenticated', function(assert) {
-  assert.expect(1);
-  const sessionData = {
-    idToken: 1
-  };
-
-  authenticateSession(this.application, sessionData);
-  visit('/login');
-  andThen(() => {
+    await authenticateSession(this.application, sessionData);
+    await visit('/login');
+    
     let session = currentSession(this.application);
     let idToken = get(session, 'data.authenticated.idToken');
     assert.equal(idToken, sessionData.idToken);
     assert.equal(currentURL(), '/protected');
   });
-});
 
-test('it mocks the auth0 lock login and logs in the user', function(assert) {
-  assert.expect(1);
-  const sessionData = {
-    idToken: 1
-  };
+  test('it mocks the auth0 lock login and logs in the user', async function(assert) {
+    assert.expect(1);
+    const sessionData = {
+      idToken: 1
+    };
 
-  mockAuth0Lock(this.application, sessionData);
-  visit('/login');
+    await mockAuth0Lock(this.application, sessionData);
+    await visit('/login');
 
-  andThen(() => {
     assert.equal(currentURL(), '/protected');
   });
+  
 });
 ```
 

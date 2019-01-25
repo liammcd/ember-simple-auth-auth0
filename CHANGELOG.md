@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## v4.2.0-beta.4 (January 25th, 2019)
+
+### Pull Requests
+
+- [#145](https://github.com/auth0-community/ember-simple-auth-auth0/pull/145)  Added Fastboot support.  *by [Aidan Nulman](https://github.com/anulman)*
+
 ## v4.2.0-beta.3 (September 19th, 2018)
 
 ### Pull Requests
