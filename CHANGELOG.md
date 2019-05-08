@@ -1,6 +1,19 @@
 Changelog
 =========
 
+## v4.2.0 (May 8th, 2019)
+
+## Silent Authentication! FastBoot! Huzzah!
+
+- Added native support for [Silent Authentication](https://auth0.com/docs/api-auth/tutorials/silent-authentication) for automatic token renewal!
+- Added FastBoot support!
+- Bugfixes! Probably.
+- A ton of README.md updates. Should be much more up-to-date and easier to use now.
+
+### Pull Requests
+
+- [#148](https://github.com/auth0-community/ember-simple-auth-auth0/pull/148)  Added issue template.  *by [Conrad Sopala](https://github.com/beardaway)*
+
 ## v4.2.0-beta.4 (January 25th, 2019)
 
 ### Pull Requests

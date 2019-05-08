@@ -8,14 +8,63 @@
 
 Auth0's [Lock](https://github.com/auth0/lock) widget is a nice way to get a fully functional signup and login workflow into your app.
 
+# Table of Contents
+
+**Basic Information**
+
+* [What does it do?](#what-does-it-do)
+* [Example App](#example-app)
+
+**Usage**
+
+* [Auth0 Setup](#auth0-setup)
+* [Installation](#installation)
+* [Configuration](#configuration)
+* [Application Route Setup](#application-route-setup)
+* [Basic Usage](#basic-usage)
+
+**Feature Guides**
+
+* [Passwordless](#passwordless)
+* [Impersonation](#impersonation)
+* [Silent Authentication](#silent-authentication)
+* [Session Data](#session-data)
+* [Handling Errors](#handling-errors)
+* [Calling an API](#calling-an-api)
+
+**Migration Guides**
+
+* [Migrating from Ember-Simple-Auth-Auth0 v3.x](#migrating-from-ember-simple-auth-auth0-v3x)
+  * [Auth0 Migration Guides](#auth0-migration-guides)
+  * [Passwordless Auth Changes](#passwordless-auth-changes)
+  * [Impersonation Changes](#impersonation-changes)
+
+**Developing this Addon**
+
+* [Acceptance Testing](#acceptance-testing)
+* [Stubbing out the authenticator for testing purposes](#stubbing-out-the-authenticator-for-testing-purposes)
+* [Contributing](#contributing)
+
+**License**
+
+* [MIT License](#license)
+
+# Basic Information
+
 ## What does it do?
 
-* Wires up Auth0's Lock.js to work with Ember Simple Auth.
-* Lets you work with Ember Simple Auth just like you normally do!
+* it wires up Auth0's **Lock.js** to work with Ember Simple Auth.
+* it lets you work with **Ember Simple Auth** just like you normally do!
 
-### Auth0
+## Example App
 
-If you don't already have an account, go sign up at for free: [Auth0](https://auth0.com/)
+This addon ships with a dead simple [dummy app](https://github.com/auth0-community/ember-simple-auth-auth0/tree/develop/tests/dummy/app) that can be used as a template for starting new projects. Alternatively, this readme details how to get it up and running from scratch, and details some more advanced features and use cases.
+
+# Usage
+
+## Auth0 Setup
+
+If you don't already have an account, go sign up at [Auth0](https://auth0.com/) for free, then:
 
 1. Create a new app through your dashboard.
 2. Add `http://localhost:4200` to your Allowed Callback URLs through your dashboard
@@ -23,18 +72,25 @@ If you don't already have an account, go sign up at for free: [Auth0](https://au
 
 ## Installation
 
-Install this addon with ember-cli:
-```ember install ember-simple-auth-auth0```
+To use this addon, simply install it with ember-cli:
 
-## Global Configuration
+```bash
+ember install ember-simple-auth-auth0
+```
 
-**In your `config/environment.js` file, you must provide the following properties**
+All dependencies such as Auth0.js, Lock, and ember-simple-auth will be pulled in automatically, so that's it!
 
-1. (REQUIRED) - _clientID_ - Grab from your [Auth0 Dashboard](https://manage.auth0.com/#/clients)
-2. (REQUIRED) - _domain_ - Grab from your [Auth0 Dashboard](https://manage.auth0.com/#/clients)
+## Configuration
+
+In your `config/environment.js` file, provide the following properties:
+
+1. (REQUIRED) - _clientID_ - Get this from your [Auth0 Dashboard](https://manage.auth0.com/#/clients)
+2. (REQUIRED) - _domain_ - Get this from your [Auth0 Dashboard](https://manage.auth0.com/#/clients)
 3. (OPTIONAL) - _logoutReturnToURL_ - This can be overridden if you have a different logout callback than the login page.
 4. (OPTIONAL) - _enableImpersonation_ - Enables user impersonation. False by default.
-The logoutURL that is actually gets used is constructed as follows:
+5. (OPTIONAL) - _silentAuth__ - A hash of options for configuring [Silent Authentication](#silent-authentication) -- see the linked doc section for more details.
+
+An example configuration might look something like:
 
 ```js
 // config/environment.js
@@ -43,10 +99,15 @@ module.exports = function(environment) {
     'ember-simple-auth': {
       authenticationRoute: 'login',
       auth0: {
-        clientID: '1234',
-        domain: 'my-company.auth0.com',
+        clientID: '<client_id>',
+        domain: '<your_domain>.auth0.com',
         logoutReturnToURL: '/logout',
-        enableImpersonation: false
+        enableImpersonation: false,
+        silentAuth: {
+          // Silent authentication is off by default.
+          // See 'Silent Authentication' section in this
+          // readme for a list of options that go here.
+        }
       }
     }
   };
@@ -55,14 +116,12 @@ module.exports = function(environment) {
 };
 ```
 
-### Suggested security config
-
-> If you are still using [content security policy](http://www.html5rocks.com/en/tutorials/security/content-security-policy/) to manage which resources are allowed to be run on your pages. Please add the following CSP rule.
+If you are using [content security policy](http://www.html5rocks.com/en/tutorials/security/content-security-policy/) to manage which resources are allowed to be run on your pages, add the following CSP rules:
 
 ```js
 // config/environment.js
 
-ENV['contentSecurityPolicy'] = {
+  ENV.contentSecurityPolicy = {
     'font-src': "'self' data: https://*.auth0.com",
     'style-src': "'self' 'unsafe-inline'",
     'script-src': "'self' 'unsafe-eval' https://*.auth0.com",
@@ -72,9 +131,228 @@ ENV['contentSecurityPolicy'] = {
 
 ```
 
-## Data object on the session
+## Application Route Setup
 
-The following is what the session object looks like after the user has been authenticated (sans the placeholders in <angle brackets>, which are filled with real data during actual use).
+In your application route, be sure to import ApplicationRouteMixin **from this addon** (i.e. not the one that ships with Ember Simple Auth), or else things like session expiration will not work correctly.
+
+```js
+// app/routes/application.js
+
+import Ember from 'ember';
+import ApplicationRouteMixin from 'ember-simple-auth-auth0/mixins/application-route-mixin';
+
+const {
+  Route,
+  RSVP
+} = Ember;
+
+export default Route.extend(ApplicationRouteMixin, {
+  beforeSessionExpired() {
+    // Do custom async logic here, e.g. notify
+    // the user that they are about to be logged out.
+
+    return RSVP.resolve();
+  }
+
+  // Do other application route stuff here. All hooks provided by
+  // ember-simple-auth's ApplicationRouteMixin, e.g. sessionInvalidated(),
+  // are supported and work just as they do in basic ember-simple-auth.
+});
+```
+
+## Basic Usage
+
+In your application controller, or wherever else you wish to do authentication (e.g. a '/login' route+controller), inject the session service and use the `auth0-lock` authenticator, like so:
+
+```js
+// app/controllers/application.js
+
+import Ember from 'ember';
+
+const {
+  Controller,
+  inject: {
+    service
+  },
+  get
+} = Ember;
+
+export default Controller.extend({
+  session: service(),
+  actions: {
+    login () {
+      // Check out Auth0 Lock's documentation for all the options:
+      // https://auth0.com/docs/libraries/lock/customization
+      const lockOptions = {
+       auth: {
+         params: {
+           scope: 'openid email profile'
+         }
+       }
+      };
+
+      get(this, 'session').authenticate('authenticator:auth0-lock', lockOptions);
+    },
+
+    logout () {
+      get(this, 'session').invalidate();
+    }
+  }
+});
+```
+
+```hbs
+{{!-- app/templates/application.hbs --}}
+
+{{#if session.isAuthenticated}}
+  <div>
+    You are currently logged as: {{session.data.authenticated.profile.email}}
+  </div>
+  <a href="" {{ action "logout" }}>Logout</a>
+{{else}}
+  <a href="" {{ action "login" }}>Login</a>
+{{/if}}
+```
+
+When the `login` action above is fired, the Lock widget is created using the options passed to the `authenticate` function. Refer to [Auth0's documentation](https://auth0.com/docs/libraries/lock/customization) for notes on how to set up Lock itself -- all options are passed through to Lock as-is.
+
+# Feature Guides
+
+## Passwordless
+
+To perform passwordless login, use the `auth0-lock-passwordless` authenticator. That's it!
+
+For more information on how to set up Passwordless authentication server side and how to configure the Lock, see the following official guides:
+
+* [Using Passwordless Authentication](https://auth0.com/docs/connections/passwordless) (server-side setup)
+* [Passwordless Options](https://auth0.com/docs/libraries/lock/v11#passwordless-options) for Lock
+
+An example might look like this:
+
+```js
+// app/controllers/application.js
+
+import Ember from 'ember';
+
+const {
+  Controller,
+  inject: {
+    service
+  },
+  get
+} = Ember;
+
+export default Controller.extend({
+  session: service(),
+  actions: {
+    login () {
+      // Check out the docs for all the options:
+      // https://github.com/auth0/lock-passwordless#customization
+      const lockOptions = {
+       allowedConnections: ['email'],
+       passwordlessMethod: 'link',
+       authParams: {
+         scope: 'openid email profile'
+       }
+      };
+
+      get(this, 'session').authenticate('authenticator:auth0-lock-passwordless', lockOptions, (err, email) => {
+        console.log(`Email link sent to ${email}!`)
+      });
+    },
+
+    logout () {
+      get(this, 'session').invalidate();
+    }
+  }
+});
+```
+
+Note that you can pass in a callback as the last argument to handle events after a passwordless link has been sent.
+
+## Impersonation
+
+This addon contains native impersonation support. Just follow the instructions on [Auth0's documentation](https://auth0.com/docs/user-profile/user-impersonation) and you will be logged in.
+
+Note that before you can use impersonation, you must **enable it in your app configuration** -- see the [Configuration](#configuration) section above.
+
+The new session object will include the following fields:
+
+```json
+{
+  "authenticated": {
+    "authenticator": "authenticator:auth0-url-hash",
+    //...
+    "profile": {
+      "impersonated": true,
+      "impersonator": {
+        "user_id": "google-oauth2|108251222085688410292",
+        "email": "impersonator@bar.com"
+      }
+    }
+    //...
+  }
+}
+```
+
+## Silent Authentication
+
+Since version 4.2.0, this addon supports automatic [Silent Authentication](https://auth0.com/docs/api-auth/tutorials/silent-authentication), a.k.a. the ability to automatically refresh session tokens upon (or before) expiration.
+
+Automatic silent authentication enabled in the app's environment configuration file; next to the rest of thea auth0 config options, simply provide a `silentAuth` object with the following:
+
+1. (OPTIONAL) - _renewSeconds_ - If set, the token will be renewed on a timer, every specified number of seconds.
+2. (OPTIONAL) - _onSessionRestore_ - If `true`, the token will be renewed when trying to restore an expired session token on app load.
+3. (OPTIONAL) - _onSessionExpire_ - If `true`, the token will be renewed when the active session token expires during app use.
+4. (REQUIRED) - _options_ - A hash of options to pass to [checkSession](https://auth0.com/docs/libraries/auth0js/v9#using-checksession-to-acquire-new-tokens), the function which performs Silent Authentication behind the scenes. See linked docs for details on what these options can be.
+
+Although the first 3 parameters are technically optional, at least one of them needs to be set for anything to happen, naturally.
+
+A typical example might look like the following:
+
+```js
+// config/environment.js
+module.exports = function(environment) {
+  let ENV = {
+    'ember-simple-auth': {
+      // ...
+
+      auth0: {
+        // ...
+
+        silentAuth: {
+
+          // automatically renew token every 30 minutes:
+          renewSeconds: 1800,
+
+          // automatically renew token when trying to restore an expired session (on app load):
+          onSessionRestore: true,
+
+          // automatically renew token when token expiration time is hit (during app use):
+          onSessionExpire: true,
+
+          // options to pass to checkSession when doing automatic silent auth.
+          // The redirectUri parameter is automatically set to window.location.origin
+          // if not specified.
+          options: {
+            responseType: 'token id_token',
+            scope: 'openid profile email',
+            timeout: 5000
+          }
+        }
+      }
+    }
+  };
+
+  return ENV;
+};
+```
+
+In addition to the above, an `auth0-silent-auth` authenticator is provided in case you have a particular custom hook in your application you wish to trigger a token refresh from, but this is a rather advanced use case that most users won't need to mess with.
+
+## Session Data
+
+After the user has been authenticated, `session.data.authenticated` is filled with the data returned by Auth0. What gets stored here is dependent on the `scope` property in your authentication options; for instance, this is what the session object looks like with `scope` set to "openid email profile" (sans the placeholders in \<angle brackets\>, which are filled with real data during actual use):
 
 __Note: all keys coming back from auth0 are transformed to camelcase for consistency__
 
@@ -96,7 +374,7 @@ __Note: all keys coming back from auth0 are transformed to camelcase for consist
     "state": "<state>",
     "expiresIn": 86400,
     "tokenType": "Bearer",
-    "scope": "openid user_metadata",
+    "scope": "openid email profile",
     "profile": {
       "email": "bob.johnson@domain.com",
       "picture": "https://s.gravatar.com/avatar/aaafe9b3923266eacb178826a65e92d1?s=480&r=pg&d=https%3A%2F%2Fcdn.auth0.com%2Favatar2%2Fcw.png",
@@ -123,218 +401,15 @@ __Note: all keys coming back from auth0 are transformed to camelcase for consist
 
 ```
 
-__You can use this in your templates that have the session service injected.__
+You can use this in your templates that have the session service injected, like so:
 
 ```html
 My logged in user email is {{session.data.authenticated.profile.email}}!
 ```
 
-## Impersonation
+## Handling Errors
 
-> This addon supports native impersonation support. Just follow the instructions on Auth0's documentation and you will be logged in.
-
-https://auth0.com/docs/user-profile/user-impersonation
-
-__The new session object will include the following fields__
-
-```json
-{
-  "authenticated": {
-    "authenticator": "authenticator:auth0-url-hash",
-    ...
-    "profile": {
-      "impersonated": true,
-      "impersonator": {
-        "user_id": "google-oauth2|108251222085688410292",
-        "email": "impersonator@bar.com"
-      }
-    }
-    ...
-  }
-}
-```
-
-## Example
-__Here is an example application route:__
-
-```js
-// app/routes/application.js
-
-import Ember from 'ember';
-import ApplicationRouteMixin from 'ember-simple-auth-auth0/mixins/application-route-mixin';
-
-const {
-  Route,
-  RSVP
-} = Ember;
-
-export default Route.extend(ApplicationRouteMixin, {
-  beforeSessionExpired() {
-    // Do async logic
-    // Notify the user that they are about to be logged out.
-
-    return RSVP.resolve();
-  }
-});
-
-```
-
-__Add the session service to your application controller:__
-
-```js
-// app/controllers/application.js
-
-import Ember from 'ember';
-
-const {
-  Controller,
-  inject: {
-    service
-  },
-  get
-} = Ember;
-
-export default Controller.extend({
-  session: service(),
-  actions: {
-    login () {
-      // Check out the docs for all the options:
-      // https://auth0.com/docs/libraries/lock/customization
-      const lockOptions = {
-       auth: {
-         params: {
-           scope: 'openid user_metadata'
-         }
-       }
-      };
-
-      get(this, 'session').authenticate('authenticator:auth0-lock', lockOptions);
-    },
-
-    logout () {
-      get(this, 'session').invalidate();
-    }
-  }
-});
-```
-
-```html
-// app/templates/application.hbs
-
-{{#if session.isAuthenticated}}
-  <div>
-    You are currently logged as: {{session.data.authenticated.profile.email}}
-  </div>
-  <a href="" {{ action "logout" }}>Logout</a>
-{{else}}
-  <a href="" {{ action "login" }}>Login</a>
-{{/if}}
-```
-
-# Passwordless
-
-To perform passwordless login, use the `auth0-lock-passwordless` authenticator. That's it!
-
-For more information on how to set up Passwordless auth server side and how to configure the Lock, see the following official guides:
-
-* [Using Passwordless Authentication](https://auth0.com/docs/connections/passwordless) (server-side setup)
-* [Passwordless Options](https://auth0.com/docs/libraries/lock/v11#passwordless-options) for Lock
-
-## Example
-
-```js
-// app/controllers/application.js
-
-import Ember from 'ember';
-
-const {
-  Controller,
-  inject: {
-    service
-  },
-  get
-} = Ember;
-
-export default Controller.extend({
-  session: service(),
-  actions: {
-    login () {
-      // Check out the docs for all the options:
-      // https://github.com/auth0/lock-passwordless#customization
-      const lockOptions = {
-       allowedConnections: ['email'],
-       passwordlessMethod: 'link',
-       authParams: {
-         scope: 'openid user_metadata'
-       }
-      };
-
-      get(this, 'session').authenticate('authenticator:auth0-lock-passwordless', lockOptions, (err, email) => {
-        console.log(`Email link sent to ${email}!`)
-      });
-    },
-
-    logout () {
-      get(this, 'session').invalidate();
-    }
-  }
-});
-```
-
-Note that you can pass in a callback as the last argument to handle events after a passwordless link has been sent.
-
-# Acceptance Testing
-
-If you want to craft acceptance tests for Auth0's Lock, there are two things you can do:
-
-- If you are just using the default auth0-lock authenticator then all you have to do is authenticateSession.
-- If you are manually invoking the auth0 lock you should use the `showLock` function on the auth0 service and then call `mockAuth0Lock` in your test.
-
-```js
-// tests/acceptance/login.js
-
-import { module, test } from 'qunit';
-import { setupApplicationTest } from 'ember-qunit';
-import { visit, currentURL } from '@ember/test-helpers';
-import { mockAuth0Lock } from 'ember-simple-auth-auth0/test-support';
-import { authenticateSession, currentSession } from 'ember-simple-auth/test-support';
-
-module('Acceptance | login', function(hooks) {
-  setupApplicationTest(hooks);
-  
-  test('visiting /login redirects to /protected page if authenticated', async function(assert) {
-    assert.expect(1);
-    const sessionData = {
-      idToken: 1
-    };
-
-    await authenticateSession(this.application, sessionData);
-    await visit('/login');
-    
-    let session = currentSession(this.application);
-    let idToken = get(session, 'data.authenticated.idToken');
-    assert.equal(idToken, sessionData.idToken);
-    assert.equal(currentURL(), '/protected');
-  });
-
-  test('it mocks the auth0 lock login and logs in the user', async function(assert) {
-    assert.expect(1);
-    const sessionData = {
-      idToken: 1
-    };
-
-    await mockAuth0Lock(this.application, sessionData);
-    await visit('/login');
-
-    assert.equal(currentURL(), '/protected');
-  });
-  
-});
-```
-
-## Handling errors
-
-Errors come back as a hash in the URL. These will be automatically parsed and ember will transition to the error route with two variables set on the model: `error` and `errorDescription`. A quick example:
+Errors come back as a hash in the URL. These will be automatically parsed and Ember will transition to the error route with two variables set on the model: `error` and `errorDescription`. A quick example:
 
 ```ember g template application-error```
 
@@ -415,7 +490,173 @@ fetch('/api/foo', {
 });
 ```
 
-### Stubbing out the authenticator for testing purposes
+# Migration Guides
+
+## Migrating from ember-simple-auth-auth0 v3.x
+
+Starting from version 4.0.0, this addon uses Lock v11, which now supports Passwordless functionality
+among other things. As such, there are a few breaking changes to consider for users coming from v3.x
+
+### Auth0 Migration Guides
+
+First and foremost, take a look at the following guides from Auth0; these cover most of the requirements:
+* [Migrating from Lock v10 to v11](https://auth0.com/docs/libraries/lock/v11/migration-v10-v11)
+* [Migration Guide for lock-passwordless to Lock v11 with Passwordless Mode](https://auth0.com/docs/libraries/lock/v11/migration-lock-passwordless)
+ 
+### Passwordless Auth Changes
+
+For those using this addon with Passwordless authentication, the API for the
+`auth0-lock-passwordless` authenticator has changed.
+
+The major **breaking change** is that the "type" parameter for the `auth0-lock-passwordless`
+authenticator is gone. Instead, set the `passwordlessMethod` and `allowedConnections` options
+in the options hash:
+
+```js
+// app/controllers/application.js
+
+import Ember from 'ember';
+
+const {
+  Controller,
+  inject: {
+    service
+  },
+  get
+} = Ember;
+
+export default Controller.extend({
+  session: service(),
+  actions: {
+
+    // OLD method of invoking passwordless auth (v3.x):
+
+    loginOld () {
+      const lockOptions = {
+       authParams: {
+         scope: 'openid email profile'
+       }
+      };
+
+      get(this, 'session').authenticate('authenticator:auth0-lock-passwordless', 'magiclink', lockOptions, (err, email) => {
+        console.log(`Email link sent to ${email}!`)
+      });
+    },
+
+    // NEW method of invoking passwordless auth (v4.x):
+
+    loginNew () {
+      const lockOptions = {
+       allowedConnections: ['email'],
+       passwordlessMethod: 'link',
+       authParams: {
+         scope: 'openid email profile'
+       }
+      };
+
+      get(this, 'session').authenticate('authenticator:auth0-lock-passwordless', lockOptions, (err, email) => {
+        console.log(`Email link sent to ${email}!`)
+      });
+    },
+
+    logout () {
+      get(this, 'session').invalidate();
+    }
+  }
+});
+```
+
+The good news here is that the `auth0-lock-passwordless` authenticator works exactly
+like `auth0-lock`; no more subtle differences.
+
+On the off-chance your Ember app is calling the `showPasswordlessLock` method of the
+`auth0` service directly, its `type` parameter has similarly been removed. The
+process of converting `type` to `options` is the same as above.
+
+See the [Initialization options](https://auth0.com/docs/libraries/lock/v11/migration-lock-passwordless#using-npm-module-bundler#initialization-options)
+section of Auth0's Passwordless migration guide for more details, though the above
+advice should hopefully suffice.
+
+### Impersonation Changes
+
+User impersonation is [disabled by default](https://github.com/auth0/auth0.js/issues/683)
+in newer versions of Auth0.js (and consequently, this addon starting from v4.0.0). To
+enable it, you'll need to set the `enableImpersonation` flag in your app's
+`config/environment.js`, like so:
+
+```js
+// config/environment.js
+module.exports = function(environment) {
+  let ENV = {
+    'ember-simple-auth': {
+      authenticationRoute: 'login',
+      auth0: {
+        clientID: '1234',
+        domain: 'my-company.auth0.com',
+        logoutReturnToURL: '/logout',
+        enableImpersonation: true
+      }
+    }
+  };
+
+  return ENV;
+};
+```
+
+Be warned that enabling impersonation has security trade-offs, so use with caution.
+
+# Developing this Addon
+
+## Acceptance Testing
+
+If you want to craft acceptance tests for Auth0's Lock, there are two things you can do:
+
+- If you are just using the default auth0-lock authenticator then all you have to do is authenticateSession.
+- If you are manually invoking the auth0 lock you should use the `showLock` function on the auth0 service and then call `mockAuth0Lock` in your test.
+
+```js
+// tests/acceptance/login.js
+
+import { module, test } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
+import { visit, currentURL } from '@ember/test-helpers';
+import { mockAuth0Lock } from 'ember-simple-auth-auth0/test-support';
+import { authenticateSession, currentSession } from 'ember-simple-auth/test-support';
+
+module('Acceptance | login', function(hooks) {
+  setupApplicationTest(hooks);
+  
+  test('visiting /login redirects to /protected page if authenticated', async function(assert) {
+    assert.expect(1);
+    const sessionData = {
+      idToken: 1
+    };
+
+    await authenticateSession(sessionData);
+    await visit('/login');
+    
+    let session = currentSession(this.application);
+    let idToken = get(session, 'data.authenticated.idToken');
+    assert.equal(idToken, sessionData.idToken);
+    assert.equal(currentURL(), '/protected');
+  });
+
+  test('it mocks the auth0 lock login and logs in the user', async function(assert) {
+    assert.expect(1);
+    const sessionData = {
+      idToken: 1
+    };
+
+    await mockAuth0Lock(sessionData);
+    await visit('/login');
+
+    assert.equal(currentURL(), '/protected');
+  });
+  
+});
+```
+
+## Stubbing out the authenticator for testing purposes
 
 If you want to replace the authenticator (e.g. for testing purposes), here is a
 minimal example. The mock JWT in this example is in `window.mockJwt` and is
@@ -452,117 +693,15 @@ plugin expects the two values `idTokenPayload.iat` and `expiresIn` to be present
 in the session data. If you don't provide these two values, your session will
 expire immediately.
 
+## Contributing
 
-# Migrating from Ember-Simple-Auth-Auth0 v3.x.
-
-Starting from version 4.0.0, this addon uses Lock v11, which now supports Passwordless functionality among other things. As such, there are a few breaking changes to consider for users coming from v3.x
-
-## Auth0 Migration Guides
-
-First and foremost, take a look at the following guides from Auth0; these cover most of the requirements:
-* [Migrating from Lock v10 to v11](https://auth0.com/docs/libraries/lock/v11/migration-v10-v11)
-* [Migration Guide for lock-passwordless to Lock v11 with Passwordless Mode](https://auth0.com/docs/libraries/lock/v11/migration-lock-passwordless)
- 
-## Passwordless Auth Changes
-
-For those using this addon with Passwordless authentication, the API for the `auth0-lock-passwordless` authenticator has changed.
-
-The major **breaking change** is that the "type" parameter for the `auth0-lock-passwordless` authenticator is gone. Instead, set the `passwordlessMethod` and `allowedConnections` options in the options hash:
-
-```js
-// app/controllers/application.js
-
-import Ember from 'ember';
-
-const {
-  Controller,
-  inject: {
-    service
-  },
-  get
-} = Ember;
-
-export default Controller.extend({
-  session: service(),
-  actions: {
-
-    // OLD method of invoking passwordless auth (v3.x):
-
-    loginOld () {
-      const lockOptions = {
-       authParams: {
-         scope: 'openid user_metadata'
-       }
-      };
-
-      get(this, 'session').authenticate('authenticator:auth0-lock-passwordless', 'magiclink', lockOptions, (err, email) => {
-        console.log(`Email link sent to ${email}!`)
-      });
-    },
-
-    // NEW method of invoking passwordless auth (v4.x):
-
-    loginNew () {
-      const lockOptions = {
-       allowedConnections: ['email'],
-       passwordlessMethod: 'link',
-       authParams: {
-         scope: 'openid user_metadata'
-       }
-      };
-
-      get(this, 'session').authenticate('authenticator:auth0-lock-passwordless', lockOptions, (err, email) => {
-        console.log(`Email link sent to ${email}!`)
-      });
-    },
-
-    logout () {
-      get(this, 'session').invalidate();
-    }
-  }
-});
-```
-
-The good news here is that the `auth0-lock-passwordless` authenticator works exactly like `auth0-lock`; no more subtle differences.
-
-On the off-chance your Ember app is calling the `showPasswordlessLock` method of the `auth0` service directly, its `type` parameter has similarly been removed. The process of converting `type` to `options` is the same as above.
-
-See the [Initialization options](https://auth0.com/docs/libraries/lock/v11/migration-lock-passwordless#using-npm-module-bundler#initialization-options) section of Auth0's Passwordless migration guide for more details, though the above advice should hopefully suffice.
-
-## Impersonation
-
-User impersonation is [disabled by default](https://github.com/auth0/auth0.js/issues/683) in newer versions of Auth0.js (and consequently, this addon starting from v4.0.0). To enable it, you'll need to set the `enableImpersonation` flag in your app's `config/environment.js`, like so:
-
-```js
-// config/environment.js
-module.exports = function(environment) {
-  let ENV = {
-    'ember-simple-auth': {
-      authenticationRoute: 'login',
-      auth0: {
-        clientID: '1234',
-        domain: 'my-company.auth0.com',
-        logoutReturnToURL: '/logout',
-        enableImpersonation: true
-      }
-    }
-  };
-
-  return ENV;
-};
-```
-
-Be warned that enabling impersonation has security trade-offs, so use with caution.
-
-# Contributing
-
-## Cloning
+### Cloning
 
 * `git clone` this repository
 * `cd ember-simple-auth-auth0`
 * `npm install`
 
-## Running
+### Running
 
 * Set the environment variable `AUTH0_CLIENT_ID_ID={Your account id}`
 * Set the environment variable `AUTH0_DOMAIN={Your account domain}`
@@ -585,7 +724,6 @@ Be warned that enabling impersonation has security trade-offs, so use with cauti
 
 For more information on using ember-cli, visit [https://ember-cli.com/](https://ember-cli.com/).
 
-License
-------------------------------------------------------------------------------
+# License
 
 This project is licensed under the [MIT License](LICENSE.md).

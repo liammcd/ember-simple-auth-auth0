@@ -4,14 +4,12 @@ import { getProperties, get, getWithDefault, computed } from '@ember/object';
 import { assert, debug } from '@ember/debug';
 import { isEmpty, isPresent } from '@ember/utils';
 import Service, { inject as service } from '@ember/service';
-import { merge as emberMerge, assign as emberAssign } from '@ember/polyfills';
+import { assign } from '@ember/polyfills';
 import RSVP from 'rsvp';
 import Auth0 from 'auth0-js';
 import { Auth0Lock, Auth0LockPasswordless } from 'auth0-lock';
 import createSessionDataObject from '../utils/create-session-data-object';
 import { Auth0Error } from '../utils/errors'
-
-const assign = Object.assign || emberAssign || emberMerge;
 
 export default Service.extend({
   session: service(),

@@ -42,7 +42,7 @@ module('Unit | Service | auth0', function(hooks) {
     };
 
     this.stubLock = function(stubbedLock) {
-      stubbedLock = stubbedLock || new StubLock();
+      stubbedLock = stubbedLock || StubLock.create();
       return this.stub().returns(stubbedLock);
     };
 
@@ -86,7 +86,7 @@ module('Unit | Service | auth0', function(hooks) {
   test('showLock calls getUserInfo', function(assert) {
     assert.expect(1);
     const done = assert.async();
-    const stubbedLock = new StubLock();
+    const stubbedLock = StubLock.create();
     const profile = {
       user_id: '1',
     };
@@ -112,7 +112,7 @@ module('Unit | Service | auth0', function(hooks) {
   test('showLock rejects when authenticatedData does not exist', function(assert) {
     assert.expect(1);
     const done = assert.async();
-    const stubbedLock = new StubLock();
+    const stubbedLock = StubLock.create();
     const subject = this.owner.factoryFor('service:auth0').create({
       getAuth0LockInstance: this.stubLock(stubbedLock)
     });
@@ -128,7 +128,7 @@ module('Unit | Service | auth0', function(hooks) {
   test('showLock rejects when getUserInfo returns an error', function(assert) {
     assert.expect(1);
     const done = assert.async();
-    const stubbedLock = new StubLock({
+    const stubbedLock = StubLock.create({
       shouldThrowGetUserInfoError: true
     });
 
