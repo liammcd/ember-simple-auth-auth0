@@ -22,6 +22,12 @@ const StubLock = EmberObject.extend(Evented, {
     }
   },
   show: sinon.stub(),
+
+  _triggerAuthenticated(authenticatedData) {
+    this.on('_setupCompleted', () => {
+      this.trigger('authenticated', authenticatedData);
+    });
+  }
 });
 
 module('Unit | Service | auth0', function(hooks) {
@@ -43,7 +49,7 @@ module('Unit | Service | auth0', function(hooks) {
 
     this.stubLock = function(stubbedLock) {
       stubbedLock = stubbedLock || StubLock.create();
-      return this.stub().returns(stubbedLock);
+      return this.stub().resolves(stubbedLock);
     };
 
     this.windowLocation = function() {
@@ -98,7 +104,7 @@ module('Unit | Service | auth0', function(hooks) {
 
     set(stubbedLock, 'profile', profile);
     const subject = this.owner.factoryFor('service:auth0').create({
-      getAuth0LockInstance: this.stubLock(stubbedLock)
+      _getAuth0LockInstance: this.stubLock(stubbedLock)
     });
 
     subject.showLock()
@@ -106,7 +112,7 @@ module('Unit | Service | auth0', function(hooks) {
       .catch(() => assert.notOk(true))
       .finally(done);
 
-    stubbedLock.trigger('authenticated', authenticatedData);
+    stubbedLock._triggerAuthenticated(authenticatedData);
   });
 
   test('showLock rejects when authenticatedData does not exist', function(assert) {
@@ -114,7 +120,7 @@ module('Unit | Service | auth0', function(hooks) {
     const done = assert.async();
     const stubbedLock = StubLock.create();
     const subject = this.owner.factoryFor('service:auth0').create({
-      getAuth0LockInstance: this.stubLock(stubbedLock)
+      _getAuth0LockInstance: this.stubLock(stubbedLock)
     });
 
     subject.showLock()
@@ -122,7 +128,7 @@ module('Unit | Service | auth0', function(hooks) {
       .catch(() => assert.ok(true))
       .finally(done);
 
-    stubbedLock.trigger('authenticated');
+    stubbedLock._triggerAuthenticated();
   });
 
   test('showLock rejects when getUserInfo returns an error', function(assert) {
@@ -133,7 +139,7 @@ module('Unit | Service | auth0', function(hooks) {
     });
 
     const subject = this.owner.factoryFor('service:auth0').create({
-      getAuth0LockInstance: this.stubLock(stubbedLock)
+      _getAuth0LockInstance: this.stubLock(stubbedLock)
     });
 
     subject.showLock()
@@ -141,6 +147,6 @@ module('Unit | Service | auth0', function(hooks) {
       .catch(() => assert.ok(true))
       .finally(done);
 
-    stubbedLock.trigger('authenticated', { idToken: '1.2.3' });
+    stubbedLock._triggerAuthenticated({ idToken: '1.2.3' });
   });
 });

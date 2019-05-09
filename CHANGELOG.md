@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## v5.0.0-beta.0 (May 9th, 2019)
+
+### Pull Requests
+
+- [#163](https://github.com/auth0-community/ember-simple-auth-auth0/pull/163)  Universal Login support  *by [Xaser Acheron](https://github.com/auth0-XaserAcheron)*
+- [#168](https://github.com/auth0-community/ember-simple-auth-auth0/pull/168)  Remove JWT Authorizer  *by [Robert Schaefer](https://github.com/roschaefer) and [Xaser Acheron](https://github.com/auth0-XaserAcheron)*
+
 ## v4.2.0 (May 8th, 2019)
 
 ## Silent Authentication! FastBoot! Huzzah!

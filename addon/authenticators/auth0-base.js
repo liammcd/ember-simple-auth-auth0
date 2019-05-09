@@ -26,7 +26,7 @@ export default BaseAuthenticator.extend({
     if (isEmpty(authResult)) {
       reject();
     }
-    const auth0 = get(this, 'auth0').getAuth0Instance();
+    const auth0 = get(this, 'auth0')._getAuth0Instance();
     const getUserInfo = auth0.client.userInfo.bind(auth0.client);
 
     getUserInfo(authResult.accessToken, (err, profile) => {

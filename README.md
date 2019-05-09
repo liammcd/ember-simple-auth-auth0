@@ -6,7 +6,7 @@
 
 ### An ember-cli addon for using [Auth0](https://auth0.com/) with [Ember Simple Auth](https://github.com/simplabs/ember-simple-auth).
 
-Auth0's [Lock](https://github.com/auth0/lock) widget is a nice way to get a fully functional signup and login workflow into your app.
+Auth0's [Lock](https://github.com/auth0/lock) widget and [Universal Login](https://auth0.com/docs/universal-login) page are nice ways to get a fully functional signup and login workflow into your app. This addon makes it dead simple to add one or the other to your Ember application.
 
 # Table of Contents
 
@@ -15,17 +15,21 @@ Auth0's [Lock](https://github.com/auth0/lock) widget is a nice way to get a full
 * [What does it do?](#what-does-it-do)
 * [Example App](#example-app)
 
-**Usage**
+**Installation**
 
 * [Auth0 Setup](#auth0-setup)
-* [Installation](#installation)
+* [Addon Installation](#addon-installation)
 * [Configuration](#configuration)
 * [Application Route Setup](#application-route-setup)
-* [Basic Usage](#basic-usage)
+
+**Usage**
+
+* [Embedded Lock](#embedded-lock)
+* [Passwordless Login](#passwordless-login)
+* [Universal Login](#universal-login)
 
 **Feature Guides**
 
-* [Passwordless](#passwordless)
 * [Impersonation](#impersonation)
 * [Silent Authentication](#silent-authentication)
 * [Session Data](#session-data)
@@ -34,7 +38,10 @@ Auth0's [Lock](https://github.com/auth0/lock) widget is a nice way to get a full
 
 **Migration Guides**
 
-* [Migrating from Ember-Simple-Auth-Auth0 v3.x](#migrating-from-ember-simple-auth-auth0-v3x)
+* [Migrating from Ember-Simple-Auth-Auth0 v4.x to v5.x](#migrating-from-ember-simple-auth-auth0-v4x-to-v5x)
+  * [Replace JWT Authorizer](#replace-jwt-authorizer)
+  * [Replace DataAdapterMixin](#replace-dataadaptermixin)
+* [Migrating from Ember-Simple-Auth-Auth0 v3.x to v4.x](#migrating-from-ember-simple-auth-auth0-v3x-to-v4x)
   * [Auth0 Migration Guides](#auth0-migration-guides)
   * [Passwordless Auth Changes](#passwordless-auth-changes)
   * [Impersonation Changes](#impersonation-changes)
@@ -53,14 +60,14 @@ Auth0's [Lock](https://github.com/auth0/lock) widget is a nice way to get a full
 
 ## What does it do?
 
-* it wires up Auth0's **Lock.js** to work with Ember Simple Auth.
+* it wires up Auth0's **Lock.js** and its hosted **Universal Login** to work with Ember Simple Auth.
 * it lets you work with **Ember Simple Auth** just like you normally do!
 
 ## Example App
 
 This addon ships with a dead simple [dummy app](https://github.com/auth0-community/ember-simple-auth-auth0/tree/develop/tests/dummy/app) that can be used as a template for starting new projects. Alternatively, this readme details how to get it up and running from scratch, and details some more advanced features and use cases.
 
-# Usage
+# Installation
 
 ## Auth0 Setup
 
@@ -68,9 +75,10 @@ If you don't already have an account, go sign up at [Auth0](https://auth0.com/) 
 
 1. Create a new app through your dashboard.
 2. Add `http://localhost:4200` to your Allowed Callback URLs through your dashboard
-3. Done!
+3. If you wish to use a hosted login page (i.e. Universal Login), enable it through your dashboard
+4. That's it!
 
-## Installation
+## Addon Installation
 
 To use this addon, simply install it with ember-cli:
 
@@ -138,13 +146,9 @@ In your application route, be sure to import ApplicationRouteMixin **from this a
 ```js
 // app/routes/application.js
 
-import Ember from 'ember';
+import Route from '@ember/routing/route';
+import RSVP from 'rsvp';
 import ApplicationRouteMixin from 'ember-simple-auth-auth0/mixins/application-route-mixin';
-
-const {
-  Route,
-  RSVP
-} = Ember;
 
 export default Route.extend(ApplicationRouteMixin, {
   beforeSessionExpired() {
@@ -160,22 +164,17 @@ export default Route.extend(ApplicationRouteMixin, {
 });
 ```
 
-## Basic Usage
+# Usage
 
-In your application controller, or wherever else you wish to do authentication (e.g. a '/login' route+controller), inject the session service and use the `auth0-lock` authenticator, like so:
+## Embedded Lock
+
+To use the embedded Lock widget, in your application controller, or wherever else you wish to do authentication (e.g. a '/login' route+controller), inject the session service and use the `auth0-lock` authenticator, like so:
 
 ```js
 // app/controllers/application.js
 
-import Ember from 'ember';
-
-const {
-  Controller,
-  inject: {
-    service
-  },
-  get
-} = Ember;
+import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
   session: service(),
@@ -191,11 +190,11 @@ export default Controller.extend({
        }
       };
 
-      get(this, 'session').authenticate('authenticator:auth0-lock', lockOptions);
+      this.session.authenticate('authenticator:auth0-lock', lockOptions);
     },
 
     logout () {
-      get(this, 'session').invalidate();
+      this.session.invalidate();
     }
   }
 });
@@ -216,9 +215,7 @@ export default Controller.extend({
 
 When the `login` action above is fired, the Lock widget is created using the options passed to the `authenticate` function. Refer to [Auth0's documentation](https://auth0.com/docs/libraries/lock/customization) for notes on how to set up Lock itself -- all options are passed through to Lock as-is.
 
-# Feature Guides
-
-## Passwordless
+## Passwordless Login
 
 To perform passwordless login, use the `auth0-lock-passwordless` authenticator. That's it!
 
@@ -232,15 +229,8 @@ An example might look like this:
 ```js
 // app/controllers/application.js
 
-import Ember from 'ember';
-
-const {
-  Controller,
-  inject: {
-    service
-  },
-  get
-} = Ember;
+import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
   session: service(),
@@ -256,19 +246,58 @@ export default Controller.extend({
        }
       };
 
-      get(this, 'session').authenticate('authenticator:auth0-lock-passwordless', lockOptions, (err, email) => {
+      this.session.authenticate('authenticator:auth0-lock-passwordless', lockOptions, (err, email) => {
         console.log(`Email link sent to ${email}!`)
       });
     },
 
     logout () {
-      get(this, 'session').invalidate();
+      this.session.invalidate();
     }
   }
 });
 ```
 
 Note that you can pass in a callback as the last argument to handle events after a passwordless link has been sent.
+
+## Universal Login
+
+To use Auth0's [Universal Login](https://auth0.com/docs/universal-login) workflow (i.e. an Auth0-hosted login page), use the `auth0-universal` authenticator. This will redirect the user to the hosted login page (just be sure to set this up on the server through your Auth0 dashboard first).
+
+Behind the scenes, the authenticator calls Auth0.js's [authorize](https://auth0.com/docs/libraries/auth0js/v9#webauth-authorize-) method, so see the linked docs for a full list of supported options.
+
+An example:
+
+```js
+// app/controllers/application.js
+
+import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
+
+export default Controller.extend({
+  session: service(),
+  actions: {
+    login () {
+      // Check out the docs for all the options:
+      // https://auth0.com/docs/libraries/auth0js/v9#webauth-authorize-
+      const authOptions = {
+        responseType: 'token',
+        scope: 'openid email profile'
+      };
+
+      this.session.authenticate('authenticator:auth0-universal', authOptions, (err, email) => {
+        console.log(`Email link sent to ${email}!`)
+      });
+    },
+
+    logout () {
+      this.session.invalidate();
+    }
+  }
+});
+```
+
+# Feature Guides
 
 ## Impersonation
 
@@ -398,12 +427,11 @@ __Note: all keys coming back from auth0 are transformed to camelcase for consist
     }
   }
 }
-
 ```
 
 You can use this in your templates that have the session service injected, like so:
 
-```html
+```hbs
 My logged in user email is {{session.data.authenticated.profile.email}}!
 ```
 
@@ -421,7 +449,7 @@ Encountered an error from auth0 - {{model.error}} -- {{model.errorDescription}}
 
 ## Calling an API
 
-Use the `jwt` authorizer to get the user's token for API-calling purposes.
+The plugin `ember-simple-auth` provides the `authorize` hook to add the token of the user to the headers of the API request.
 
 See [server](./server) for an example of an express application getting called by the ember app.
 
@@ -430,34 +458,28 @@ An example using [ember-data](https://github.com/emberjs/data):
 `ember g adapter application`
 
 ```js
-import Ember from 'ember';
-import DS from 'ember-data';
+import JSONAPIAdapter from 'ember-data/adapters/json-api';
 import DataAdapterMixin from 'ember-simple-auth/mixins/data-adapter-mixin';
-
-const {
-  computed
-} = Ember;
-
-const {
-  JSONAPIAdapter
-} = DS;
+import { isPresent } from '@ember/utils';
+import { debug } from '@ember/debug';
 
 export default JSONAPIAdapter.extend(DataAdapterMixin, {
-  authorizer: 'authorizer:jwt',
+  authorize(xhr){
+    const { idToken } = this.get('session.data.authenticated');
+    if (isPresent(idToken)) {
+      xhr.setRequestHeader('Authorization', `Bearer ${idToken}`);
+    } else {
+      debug('Could not find the authorization token in the session data.');
+    }
+  }
 });
-
 ```
 
 ```js
 // app/routes/application.js
 
-import Ember from 'ember';
+import Route from '@ember/routing/route';
 import ApplicationRouteMixin from 'ember-simple-auth-auth0/mixins/application-route-mixin';
-
-const {
-  Route,
-  RSVP
-} = Ember;
 
 export default Route.extend(ApplicationRouteMixin, {
   model() {
@@ -483,7 +505,7 @@ fetch('/api/foo', {
   method: 'GET',
   cache: false,
   headers: {
-    'Authorization': 'Bearer <%= "${session.data.authenticated.jwt}" %>'
+    'Authorization': `Bearer ${session.data.authenticated.jwt}`
   }
 }).then(function (response) {
   // use response
@@ -492,7 +514,75 @@ fetch('/api/foo', {
 
 # Migration Guides
 
-## Migrating from ember-simple-auth-auth0 v3.x
+## Migrating from ember-simple-auth-auth0 v4.x to v5.x
+
+The major breaking change in 5.x is the removal of the `jwt` authorizer. Ember Simple Auth has [deprecated authorizers](https://github.com/simplabs/ember-simple-auth#deprecation-of-authorizers) and will be removing them in a future release, so this addon has followed suit for futureproofing's sake.
+
+### Replace JWT Authorizer
+
+If you're directly using the `jwt` authorizer through the session service, like so:
+
+```js
+// app/controllers/something.js
+
+import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
+
+export default Controller.extend({
+  session: service(),
+  actions: {
+    doSomething () {
+      // ...
+      this.session.authorize('authorizer:jwt', (headerName, headerValue) => {
+        // ...do something with the header.
+      });
+      // ...
+    }
+  }
+});
+```
+
+Either construct an Authentication header from `session.data.authenticated` as shown in the [Calling an API](#calling-an-api) guide above, or just inject the `auth0` service and call the `authorize` method, like so:
+
+```js
+// app/controllers/something.js
+
+import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
+
+export default Controller.extend({
+  auth0: service(),
+  actions: {
+    doSomething () {
+      // ...
+      this.auth0.authorize((headerName, headerValue) => {
+        // ...do something with the header.
+      });
+      // ...
+    }
+  }
+});
+```
+
+The `auth0.authorize` method is nearly the same as `session.authorize`, but there's one less parameter since you no longer have to specify an authorizer type.
+
+### Replace DataAdapterMixin
+
+If you're currently Ember Simple Auth's DataAdapterMixin along with the `jwt` authorizer to make ember-data work, this addon includes a replacement Auth0DataAdapterMixin that does this for you:
+
+```js
+// app/adapters/application.js
+import JSONAPIAdapter from 'ember-data/adapters/json-api';
+import Auth0DataAdapterMixin from 'ember-simple-auth-auth0/mixins/auth0-data-adapter-mixin';
+
+export default JSONAPIAdapter.extend(Auth0DataAdapterMixin, {
+  // customizer your adpater further here, if you wish.
+});
+```
+
+Note that this is functionally equivalent to customizing the adapter as shown in the [Calling an API](#calling-an-api) guide above. The guides in the main sections of this README use the methodology recommended by Ember Simple Auth (that is, constructing a header directly) rather than use these shortcut functions/mixins, but they're effectively the same. It's a matter of taste and convenience, mostly.
+
+## Migrating from ember-simple-auth-auth0 v3.x to v4.x
 
 Starting from version 4.0.0, this addon uses Lock v11, which now supports Passwordless functionality
 among other things. As such, there are a few breaking changes to consider for users coming from v3.x
@@ -515,15 +605,8 @@ in the options hash:
 ```js
 // app/controllers/application.js
 
-import Ember from 'ember';
-
-const {
-  Controller,
-  inject: {
-    service
-  },
-  get
-} = Ember;
+import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
   session: service(),
@@ -538,7 +621,7 @@ export default Controller.extend({
        }
       };
 
-      get(this, 'session').authenticate('authenticator:auth0-lock-passwordless', 'magiclink', lockOptions, (err, email) => {
+      this.session.authenticate('authenticator:auth0-lock-passwordless', 'magiclink', lockOptions, (err, email) => {
         console.log(`Email link sent to ${email}!`)
       });
     },
@@ -554,13 +637,13 @@ export default Controller.extend({
        }
       };
 
-      get(this, 'session').authenticate('authenticator:auth0-lock-passwordless', lockOptions, (err, email) => {
+      this.session.authenticate('authenticator:auth0-lock-passwordless', lockOptions, (err, email) => {
         console.log(`Email link sent to ${email}!`)
       });
     },
 
     logout () {
-      get(this, 'session').invalidate();
+      this.session.invalidate();
     }
   }
 });

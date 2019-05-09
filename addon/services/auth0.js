@@ -7,12 +7,12 @@ import Service, { inject as service } from '@ember/service';
 import { assign } from '@ember/polyfills';
 import RSVP from 'rsvp';
 import Auth0 from 'auth0-js';
-import { Auth0Lock, Auth0LockPasswordless } from 'auth0-lock';
 import createSessionDataObject from '../utils/create-session-data-object';
 import { Auth0Error } from '../utils/errors'
 
 export default Service.extend({
   session: service(),
+  cookies: service(),
 
   inTesting: computed(function() {
     let config = getOwner(this).resolveRegistration('config:environment');
@@ -88,9 +88,11 @@ export default Service.extend({
    * Default options to use when performing silent authentication.
    * This is a function rather than a computed property since the
    * default redirectUri needs to be regenerated every time.
+   * 
+   * @method _getSilentAuthOptions
    * @return {Object}
    */
-  getSilentAuthOptions() {
+  _getSilentAuthOptions() {
     const defaultOptions = {
       responseType: 'token',
       scope: 'openid',
@@ -121,13 +123,14 @@ export default Service.extend({
    * use the authenticator rather than calling this directly.
    *
    * @method silentAuth
+   * @param {Object} options
    */
   silentAuth(options) {
     if(!options) {
-      options = this.getSilentAuthOptions();
+      options = this._getSilentAuthOptions();
     }
     return new RSVP.Promise((resolve, reject) => {
-      const auth0 = this.getAuth0Instance();
+      const auth0 = this._getAuth0Instance();
       auth0.checkSession(options, (err, data) => {
         if(!err) {
           // special check: running this with Ember Inspector active
@@ -156,6 +159,7 @@ export default Service.extend({
    * nothing if the session is not authenticated.
    *
    * @method authorize
+   * @param {Object} block
    */
   authorize(block) {
     if (get(this, 'session.isAuthenticated')) {
@@ -169,11 +173,50 @@ export default Service.extend({
     }
   },
 
+  /**
+   * Redirect to Auth0's Universal Login page.
+   *
+   * @method universalLogin
+   * @param {Object} options
+   */
+  universalLogin(options)
+  {
+    // save the attempted transition URL so ember-simple-auth
+    // will restore it once Auth0 redirects back to the app.
+    let transitionPath = get(this, 'session.attemptedTransition.intent.url');
+    if(transitionPath) {
+      get(this, 'cookies').write('ember_simple_auth-redirectTarget', transitionPath, {
+        path: '/',
+        secure: window.location.protocol === 'https:'
+      });
+    }
+
+    // redirect to the login page.
+    const auth0 = this._getAuth0Instance();
+    const authOptions = assign({ redirectUri: window.location.origin }, options);
+    auth0.authorize(authOptions);
+
+    // since the above triggers a redirect away from the
+    // Ember app, return a never-fulfilling promise.
+    const noop = () => {};
+    return new RSVP.Promise(noop);
+  },
+
+  /**
+   * Show Lock.
+   *
+   * @method showLock
+   * @param {Object} options
+   * @param {String} clientID
+   * @param {String} domain
+   * @param {Boolean} passwordless
+   */
   showLock(options, clientID = null, domain = null, passwordless = false) {
     return new RSVP.Promise((resolve, reject) => {
-      const lock = this.getAuth0LockInstance(options, clientID, domain, passwordless);
-      this._setupLock(lock, resolve, reject);
-      lock.show();
+      this._getAuth0LockInstance(options, clientID, domain, passwordless).then(lock => {
+        this._setupLock(lock, resolve, reject);
+        lock.show();
+      }, reject);
     });
   },
 
@@ -192,36 +235,42 @@ export default Service.extend({
           return reject(new Auth0Error(error));
         }
 
-        resolve(createSessionDataObject(profile, authenticatedData));
+        return resolve(createSessionDataObject(profile, authenticatedData));
       });
     });
+
+    // [XA] shim for tests -- need to wait until the above 'authenticated'
+    // listener is registered before triggering it during unit tests.
+    if (this.get('inTesting')) {
+      lock.trigger('_setupCompleted');
+    }
   },
 
-  getAuth0LockInstance(options, clientID = null, domain = null, passwordless = false) {
-    clientID = clientID || get(this, 'clientID');
-    domain = domain || get(this, 'domain');
-    const Auth0LockConstructor = get(this, passwordless ? '_auth0LockPasswordless' : '_auth0Lock');
-
-    return new Auth0LockConstructor(clientID, domain, options);
+  _getAuth0LockModule() {
+    return import('auth0-lock');
   },
 
-  getAuth0Instance(clientID = null, domain = null) {
+  _getAuth0LockInstance(options, clientID = null, domain = null, passwordless = false) {
     clientID = clientID || get(this, 'clientID');
     domain = domain || get(this, 'domain');
 
-    const Auth0Constructor = get(this, '_auth0.WebAuth');
+    return this._getAuth0LockModule().then(module => {
+      const Auth0LockConstructor = passwordless ? module.Auth0LockPasswordless : module.Auth0Lock;
+      return new Auth0LockConstructor(clientID, domain, options);
+    })
+  },
 
-    return new Auth0Constructor({
+  _getAuth0Instance(clientID = null, domain = null) {
+    clientID = clientID || get(this, 'clientID');
+    domain = domain || get(this, 'domain');
+
+    return new Auth0.WebAuth({
       domain,
       clientID
     });
   },
 
-  getAuth0LockPasswordlessInstance(options, clientID = null, domain = null) {
-    return this.getAuth0LockInstance(options, clientID, domain, true);
-  },
-
-  navigateToLogoutURL(logoutUrl) {
+  _navigateToLogoutURL(logoutUrl) {
     let {
       domain,
       logoutReturnToURL,
@@ -237,25 +286,13 @@ export default Service.extend({
 
   logout(logoutUrl) {
     get(this, 'session').invalidate().then(() => {
-      this.navigateToLogoutURL(logoutUrl);
+      this._navigateToLogoutURL(logoutUrl);
     });
   },
-
-  _auth0: computed(function() {
-    return Auth0;
-  }),
-
-  _auth0Lock: computed(function() {
-    return Auth0Lock;
-  }),
-
-  _auth0LockPasswordless: computed(function() {
-    return Auth0LockPasswordless;
-  }),
 
   _environmentConfig: computed({
     get() {
       return getOwner(this).resolveRegistration('config:environment');
     }
-  }),
+  })
 });
