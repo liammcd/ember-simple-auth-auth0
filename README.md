@@ -4,6 +4,10 @@
 [![Ember Observer Score](https://emberobserver.com/badges/ember-simple-auth-auth0.svg)](https://emberobserver.com/addons/ember-simple-auth-auth0)
 [![npm version](https://badge.fury.io/js/ember-simple-auth-auth0.svg)](https://badge.fury.io/js/ember-simple-auth-auth0)
 
+## NOTICE
+
+The Auth0 Community is in the process of deprecating this library, and the repository will no longer be available on Github after the end-of-life date of **September 30, 2021**. Please make plans to find a suitable replacement or remove this library from any active projects before the end-of-life date. Please reach out in the supporting [Auth0 Community topic](https://community.auth0.com/t/community-repo-deprecations-september-2021-eol/60380) if you have any questions or concerns.
+
 ### An ember-cli addon for using [Auth0](https://auth0.com/) with [Ember Simple Auth](https://github.com/simplabs/ember-simple-auth).
 
 Auth0's [Lock](https://github.com/auth0/lock) widget and [Universal Login](https://auth0.com/docs/universal-login) page are nice ways to get a fully functional signup and login workflow into your app. This addon makes it dead simple to add one or the other to your Ember application.
