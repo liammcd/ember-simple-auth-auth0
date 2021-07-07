@@ -83,7 +83,7 @@
     "ember-auto-import": "^1.6.0",
     "ember-cli-babel": "^7.23.0",
     "ember-cli-htmlbars": "^5.3.1",
-    "ember-simple-auth": ">= 1.x <= 3.x",
+    "ember-simple-auth": "1.9.2",
     "webpack": "^4.43.0"
   },
   "ember": {
